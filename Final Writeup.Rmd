@@ -1,0 +1,74 @@
+---
+title: "Practical Machine Learning Final"
+author: "Stephen Wallace"
+date: "May 18, 2016"
+output: html_document
+---
+
+#Objective
+
+Our task in this exercise was to use data collected from electronic fitness devices to predict the manner in which an exercise was performed. This is represented by the "classe" variable from the training data set, which has 5 levels.
+
+#Data
+The "raw" training data contains 19,622 observations of 160 variables of various types and levels of completeness. The testing data has 20 observations of the same variables (minus "classe", the dependent variable).
+
+#Feature Selection
+Given that this is a classification problem (and I did not want to spend a significant amount of time doing feature selection), I decided to use some combination of random forest and gradient boosting methods. To make things simple, I decided to attempt modeling using only numeric variables without NAs in the training and testing sets. I further reduced the set of features by removing the unique row identifier and the time stamps. The resulting set of features was reduced to the following 53 predictors:
+```{r, echo=FALSE}
+load("C:/Users/stwallace/Documents/Coursera/Practical Machine Learning/Practical Machine Learning Workspace.rdata")
+names(training_clean)[1:53]
+```
+
+#Model Selection
+Although it is not best practice, I somewhat naively decided to create an ensemble model to predict the class. My idea was to train a random forest and a gradient boosting model. For the gradient boosting model, I pre-processed the data with principal component analysis, using the minimum number of canonical variables to account for 95% of the variance. After training the described models, I trained a random forest using the probability predictions from the individual models as predictors.
+
+#Performance Evaluation
+My "sanity checks" for the out of bag error for each model was simply to look at the accuracy of each on the training data:
+
+
+**Base Random Forest**
+```{r, echo=FALSE}
+library(lattice)
+library(ggplot2)
+library(caret)
+confusionMatrix(pred_rf_train_c, training$classe)
+```
+
+
+**Gradient Boosting with PCA:**
+```{r, echo=FALSE}
+confusionMatrix(pred_gb_train_c, training$classe)
+```
+
+
+I also checked the variable importance to ensure that they were reasonable:
+
+**Base Random Forest**
+```{r, echo=FALSE}
+library(randomForest)
+varImp(rf)
+```
+
+**Gradient Boosting with PCA**
+```{r, echo=FALSE}
+library(survival)
+library(splines)
+library(cluster)
+library(parallel)
+library(plyr)
+library(gbm)
+
+varImp(gb)
+```
+(The transformed variable importance here is difficult to interpret)
+
+#Prediction
+After performing these checks, I made my predictions for the class of the testing data, which are as follow:
+```{r, echo=FALSE}
+predict_class <- data.frame(seq(1:20), predict(ens, newdata = testing_ens, type = "raw"))
+names(predict_class) <- c("Case Number","Predicted Class")
+predict_class
+```
+
+#Results
+My predictions resulted in 100% prediction accurary on the testing data. One important note is that the base random forest model also correctly picked all the classes, and the gradient boosting model with PCA correctly predicted 17/20. In retrospect, a simpler model would have more than sufficed, but I think the exercise of creating the ensemble model was educational.
